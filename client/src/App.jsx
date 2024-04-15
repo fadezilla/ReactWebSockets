@@ -1,57 +1,45 @@
 import { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 
-const socket = io('ws://localhost:8080', {
-  autoConnect: false, // Prevent immediate connection on page load
-  reconnectionAttempts: 5,
-  reconnectionDelayMax: 5000,
-});
+const socket = io('ws://localhost:8080');
 
 function App() {
   const [room, setRoom] = useState('');
   const [currentRoom, setCurrentRoom] = useState('');
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
+  const [username, setUsername] = useState(''); // New state for username
+  const [roomClients, setRoomClients] = useState([]);
 
   useEffect(() => {
-    // Connect manually to have control over when we connect
-    socket.connect();
-
-    // Setup listeners
     socket.on('message', (message) => {
       setMessages((messages) => [...messages, message]);
     });
-
     socket.on('global message', (message) => {
       setMessages((messages) => [...messages, `GLOBAL: ${message}`]);
     });
-
-    socket.on('reconnect', () => {
-      // Re-join the room automatically on reconnect
-      if (currentRoom) {
-        socket.emit('join room', currentRoom);
-        console.log(`Re-joined room ${currentRoom} after reconnecting`);
-        // Potentially fetch missed messages here
-      }
+    socket.on('room clients', (clients) => {
+      setRoomClients(clients);
+      console.log('Current clients in room:', clients);
     });
 
     return () => {
       socket.off('message');
       socket.off('global message');
-      socket.off('reconnect');
+      socket.off('room clients');
     };
-  }, [currentRoom]); // Depend on currentRoom to re-join correctly after reconnects
+  }, []);
 
   const joinRoom = () => {
-    if (room !== '') {
-      socket.emit('join room', room);
-      setCurrentRoom(room); // Update the current room state to re-join on reconnect
+    if (room !== '' && username !== '') {
+      socket.emit('set username', { username, room }); // Emit event to set username
+      setCurrentRoom(room);
     }
   };
 
   const sendRoomMessage = () => {
     if (inputMessage !== '') {
-      socket.emit('message', { room: currentRoom, message: inputMessage }); // Use currentRoom to ensure consistency
+      socket.emit('message', { room: currentRoom, message: inputMessage });
       setInputMessage('');
     }
   };
@@ -68,6 +56,12 @@ function App() {
       <h2>Chat Room</h2>
       {currentRoom && <h3>Current Room: {currentRoom}</h3>}
       <div>
+        <input
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          type="text"
+          placeholder="Enter your username..."
+        />
         <input
           value={room}
           onChange={(e) => setRoom(e.target.value)}
@@ -89,6 +83,14 @@ function App() {
       />
       <button onClick={sendRoomMessage}>Send room message</button>
       <button onClick={sendGlobalMessage}>Send Global Message</button>
+      <div>
+        <h4>Clients in Room:</h4>
+        <ul>
+          {roomClients.map((client) => (
+            <li key={client.id}>{client.username}</li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
