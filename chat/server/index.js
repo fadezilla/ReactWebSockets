@@ -34,6 +34,11 @@ io.on('connection', (socket) => {
     io.emit('global message', message);
   });
 
+  socket.on('private message', ({ to, message, from }) => {
+    console.log(`sending private message from ${from} to ${to}: ${message}`);
+    socket.to(to).emit('private message', `From ${from}: ${message}`);
+  });
+
   socket.on('disconnecting', async () => {
     const rooms = socket.rooms;
     rooms.forEach(async (room) => {

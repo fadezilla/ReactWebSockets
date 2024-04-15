@@ -10,23 +10,34 @@ function App() {
   const [inputMessage, setInputMessage] = useState('');
   const [username, setUsername] = useState(''); // New state for username
   const [roomClients, setRoomClients] = useState([]);
+  //Store the selected client ID to send a private message
+  const [selectedClient, setSelectedClient] = useState('');
 
   useEffect(() => {
     socket.on('message', (message) => {
-      setMessages((messages) => [...messages, message]);
+      const timestamp = new Date();
+      setMessages((messages) => [...messages, { text: message, timestamp }]);
     });
     socket.on('global message', (message) => {
-      setMessages((messages) => [...messages, `GLOBAL: ${message}`]);
+      const timestamp = new Date();
+      setMessages((messages) => [...messages, { text: `Global: ${message}`, timestamp }]);
     });
+
     socket.on('room clients', (clients) => {
       setRoomClients(clients);
       console.log('Current clients in room:', clients);
     });
 
+    socket.on('private message', (message) => {
+      const timestamp = new Date();
+      setMessages((messages) => [...messages, { text: `PRIVATE: ${message}`, timestamp }]);
+    })
+
     return () => {
       socket.off('message');
       socket.off('global message');
       socket.off('room clients');
+      socket.off('private message');
     };
   }, []);
 
@@ -51,6 +62,25 @@ function App() {
     }
   };
 
+  const sendPrivateMessage = () => {
+    if(inputMessage !== '' && selectedClient !== '') {
+      //Send a private message to the selected client
+      socket.emit('private message', {
+        to: selectedClient,
+        message: inputMessage,
+        from: username,
+      });
+      //get the current timestamp:
+      const timestamp = new Date();
+      //update the messages state with the new private message
+      setMessages((messages) => [
+        ...messages,
+        { text: `To ${selectedClient}: ${inputMessage}`, timestamp },
+      ]);
+      setInputMessage('');
+    }
+  };
+
   return (
     <div>
       <h2>Chat Room</h2>
@@ -70,11 +100,6 @@ function App() {
         />
         <button onClick={joinRoom}>Join Room</button>
       </div>
-      <ul>
-        {messages.map((message, index) => (
-          <li key={index}>{message}</li>
-        ))}
-      </ul>
       <input
         value={inputMessage}
         onChange={(e) => setInputMessage(e.target.value)}
@@ -91,6 +116,40 @@ function App() {
           ))}
         </ul>
       </div>
+      <div>
+        <h4>Send Private Message:</h4>
+        <select
+          onChange={(e) => setSelectedClient(e.target.value)}
+          value={selectedClient}
+        >
+          <option value="">Select a user</option>
+          {roomClients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.username}
+            </option>
+          ))}
+        </select>
+        <input
+          value={inputMessage}
+          onChange={(e) => setInputMessage(e.target.value)}
+          type="text"
+          placeholder="Type a private message..."
+        />
+        <button onClick={sendPrivateMessage}>Send Private Message</button>
+      </div>
+      <h3>Messages</h3>
+      <ul>
+        {messages.map((message, index) => (
+          <li key={index}>
+            {message.timestamp.toLocaleTimeString('en-US', {
+              hour: '2-digit',
+              minute: '2-digit',
+              second: '2-digit',
+            })}{' '}
+            - {message.text}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
