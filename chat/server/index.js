@@ -8,20 +8,36 @@ const PORT = 8080;
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: '*', // Allow all origins
-    methods: ['GET', 'POST'], // Allow only GET and POST requests
+    origin: '*',
+    methods: ['GET', 'POST'],
   },
 });
 
 io.on('connection', (socket) => {
-  console.log('User has connected');
+  console.log('A user connected');
 
-  socket.on('message', (msg) => {
-    io.emit('message', msg);
+  // Join a room
+  socket.on('join room', (room) => {
+    socket.join(room);
+    console.log(`User joined room: ${room}`);
   });
-  
+
+  // Listen for messages sent to the room
+  socket.on('message', ({ room, message }) => {
+    // Emit the message only to users in the same room
+    console.log(`Sending message to room: ${room}`);
+    console.log('Message:', message);
+    io.to(room).emit('message', message);
+  });
+
+  socket.on('global message', (message) => {
+    //Broadcast the message to all clients, including the sender
+    console.log('Sending global message:', message);
+    io.emit('global message', message);
+  });
+
   socket.on('disconnect', () => {
-    console.log('User has disconnected');
+    console.log('User disconnected');
   });
 });
 

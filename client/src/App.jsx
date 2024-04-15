@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 const socket = io('ws://localhost:8080');
 
 function App() {
+  const [room, setRoom] = useState('');
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
 
@@ -17,14 +18,33 @@ function App() {
     };
   }, []);
 
+  const joinRoom = () => {
+    if (room !== '') {
+      socket.emit('join room', room);
+    }
+  };
+
   const sendMessage = () => {
-    socket.send(inputMessage);
-    setInputMessage('');
+    if (inputMessage !== '') {
+      console.log('Sending message from room:', room);
+      socket.emit('message', { room, message: inputMessage });
+      setInputMessage('');
+    }
   };
 
   return (
     <div>
       <h2>Chat Room</h2>
+      <div>
+        <input
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+          type="text"
+          placeholder="Enter room name..."
+        />
+        <button onClick={joinRoom}>Join Room</button>
+      </div>
+      {console.log(messages)}
       <ul>
         {messages.map((message, index) => (
           <li key={index}>{message}</li>
