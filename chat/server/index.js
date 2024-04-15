@@ -7,7 +7,9 @@ const PORT = 8080;
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
+  reconnectionAttempts: 5, //Max number of reconnection attempts
+    reconnectinDelayMax: 5000, //Maximum delay between reconnections (MS)
+    cors: {
     origin: '*',
     methods: ['GET', 'POST'],
   },
@@ -31,7 +33,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('global message', (message) => {
-    //Broadcast the message to all clients, including the sender
+    // Broadcast the message to all clients, including the sender
     console.log('Sending global message:', message);
     io.emit('global message', message);
   });
